@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ClaimInsight - Analyze and simplify your patent claims with ease. Improve readability, clarity, and compliance effortlessly!">
+    <meta name="keywords" content="Patent Claim Analysis, Readability Score, Legal Clarity, Patent Simplification">
+    <meta name="author" content="ClaimInsight Team">
+    <meta property="og:title" content="ClaimInsight - Patent Claim Analyzer">
+    <meta property="og:description" content="Enhance the clarity of your patent claims with our intelligent analysis tool!">
+    <meta property="og:type" content="website">
+    <meta name="twitter:title" content="ClaimInsight - Patent Claim Analyzer">
+    <meta name="twitter:description" content="Improve readability and simplify patent claims with AI-powered analysis!">
+    <title>ClaimInsight - Analyze & Optimize Patent Claims</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Compromise for NLP -->
+  <script src="https://cdn.jsdelivr.net/npm/compromise@13.2.0/builds/compromise.min.js"></script>
+  <style>
+    /* Custom slide transition for right section */
+    .transition-slide {
+      transition: transform 0.5s ease;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-gray-100 to-gray-200 text-gray-800">
+  <!-- Header Section with gradient background -->
+  <header class="py-10" style="background: linear-gradient(to right, #06b6d4, #9333ea);">
+    <div class="container mx-auto text-center">
+      <h1 class="text-4xl font-bold text-white">ClaimInsight</h1>
+      <p class="mt-2 text-xl text-white/80">Unlock the clarity in your patent claims with just a click!</p>
+    </div>
+  </header>
+
+  <!-- Main Content: Two-Column Layout -->
+  <main class="container mx-auto px-4 py-8">
+    <div id="mainContainer" class="flex flex-col md:flex-row gap-8">
+      <!-- Left Section: Input Form (initially full width) -->
+      <section id="leftSection" class="w-full md:w-full bg-white shadow-lg rounded-lg p-6">
+        <h2 class="text-2xl font-bold mb-4">Patent Claim Text</h2>
+        <textarea id="claimText" rows="8" class="w-full border border-gray-300 rounded p-4 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Paste your patent claim text here..."></textarea>
+        <div class="mt-4 flex justify-center space-x-4">
+          <button onclick="analyzeClaim()" class="bg-teal-600 text-white py-2 px-6 rounded hover:bg-teal-700 transition duration-300">Analyze Claim</button>
+          <button onclick="toggleAdvanced()" class="bg-purple-400 text-white py-2 px-6 rounded hover:bg-purple-500 transition duration-300">Toggle Advanced Metrics</button>
+        </div>
+      </section>
+
+      <!-- Right Section: Analysis Results (initially hidden and off-screen) -->
+      <section id="rightSection" class="w-full md:w-1/2 bg-white shadow-lg rounded-lg p-6 hidden transform translate-x-full transition-slide">
+        <!-- Error Notification -->
+        <div id="errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-center"></div>
+        <!-- Analysis Results -->
+        <div id="results" class="mb-6"></div>
+        <!-- Conclusion -->
+        <div id="conclusion" class="mb-6"></div>
+        <!-- Advanced Metrics -->
+        <div id="advancedMetrics" class="mb-6 hidden"></div>
+        <!-- Chart -->
+        <div id="chartContainer">
+          <canvas id="keywordChart" class="w-full"></canvas>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer with a cute, colorful design -->
+  <footer class="bg-gray-800 text-white py-4">
+    <div class="container mx-auto text-center">
+      <p> Made with &hearts; ClaimInsight Team. </p>
+    </div>
+  </footer>
+
+  <script>
+    // Function to display error messages.
+    function showError(message) {
+      const errorDiv = document.getElementById('errorMessage');
+      errorDiv.textContent = message;
+      errorDiv.classList.remove('hidden');
+      setTimeout(() => {
+        errorDiv.classList.add('hidden');
+        errorDiv.textContent = "";
+      }, 3000);
+    }
+    
+    // Basic text metrics functions.
+    function countWords(text) {
+      return text.trim().split(/\s+/).filter(Boolean).length;
+    }
+    
+    function countSentences(text) {
+      return text.split(/[.!?]+/).filter(sentence => sentence.trim().length > 0).length;
+    }
+    
+    function countSyllables(word) {
+      word = word.toLowerCase();
+      if (word.length <= 3) return 1;
+      word = word.replace(/e\b/, '');
+      const matches = word.match(/[aeiouy]{1,2}/g);
+      return matches ? matches.length : 1;
+    }
+    
+    function countSyllablesInText(text) {
+      const words = text.trim().split(/\s+/).filter(Boolean);
+      let total = 0;
+      words.forEach(word => { total += countSyllables(word); });
+      return total;
+    }
+    
+    function calculateFleschReadingEase(text) {
+      const totalWords = countWords(text);
+      const totalSentences = countSentences(text);
+      const totalSyllables = countSyllablesInText(text);
+      if (totalWords === 0 || totalSentences === 0) return 0;
+      const ASL = totalWords / totalSentences;
+      const ASW = totalSyllables / totalWords;
+      const score = 206.835 - (1.015 * ASL) - (84.6 * ASW);
+      return Math.round(score * 10) / 10;
+    }
+    
+    function averageWordLength(text) {
+      const words = text.trim().split(/\s+/).filter(Boolean);
+      if (words.length === 0) return 0;
+      const total = words.reduce((sum, word) => sum + word.length, 0);
+      return (total / words.length).toFixed(2);
+    }
+    
+    function countLongWords(text, threshold = 7) {
+      const words = text.trim().split(/\s+/).filter(Boolean);
+      return words.filter(word => word.length >= threshold).length;
+    }
+    
+    function extractKeywords(text, topN) {
+      const doc = nlp(text);
+      const nouns = doc.nouns().out('array');
+      const freq = {};
+      nouns.forEach(noun => {
+        const lower = noun.toLowerCase();
+        freq[lower] = (freq[lower] || 0) + 1;
+      });
+      const sorted = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);
+      const result = {};
+      sorted.slice(0, topN).forEach(noun => { result[noun] = freq[noun]; });
+      return result;
+    }
+    
+    let keywordChart;
+    function createKeywordChart(keywordCounts) {
+      const ctx = document.getElementById('keywordChart').getContext('2d');
+      if (keywordChart) { keywordChart.destroy(); }
+      const labels = Object.keys(keywordCounts);
+      const dataValues = labels.map(label => keywordCounts[label]);
+      const backgroundColors = labels.map((_, index) => {
+        const hue = Math.floor((index * 360) / labels.length);
+        return `hsl(${hue}, 70%, 50%)`;
+      });
+      keywordChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Keyword Frequency',
+            data: dataValues,
+            backgroundColor: backgroundColors
+          }]
+        },
+        options: {
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+    
+    // Hide right section and revert left section to full width.
+    function hideRightSection() {
+      const rightSection = document.getElementById('rightSection');
+      const leftSection = document.getElementById('leftSection');
+      rightSection.classList.add("hidden", "translate-x-full");
+      leftSection.classList.remove("md:w-1/2");
+      leftSection.classList.add("md:w-full");
+    }
+    
+    // Hide analysis when the user edits input.
+    document.getElementById('claimText').addEventListener('input', function() {
+      const rightSection = document.getElementById('rightSection');
+      if (!rightSection.classList.contains('hidden')) {
+        hideRightSection();
+      }
+    });
+    
+    function analyzeClaim() {
+      const text = document.getElementById('claimText').value;
+      if (text.trim() === "") {
+        showError("Please enter some text to analyze.");
+        return;
+      }
+      const totalWords = countWords(text);
+      if (totalWords < 10) {
+        showError("The text is too short to analyze reliably. Please enter a longer claim.");
+        return;
+      }
+      const totalSentences = countSentences(text);
+      const totalSyllables = countSyllablesInText(text);
+      const avgSentenceLength = totalSentences > 0 ? (totalWords / totalSentences).toFixed(2) : 0;
+      const readabilityScore = calculateFleschReadingEase(text);
+      const avgWordLen = averageWordLength(text);
+      const longWordsCount = countLongWords(text);
+      
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = `
+        <div class="space-y-2">
+          <p><strong>Total Words:</strong> ${totalWords}</p>
+          <p><strong>Total Sentences:</strong> ${totalSentences}</p>
+          <p><strong>Average Sentence Length:</strong> ${avgSentenceLength} words</p>
+          <p><strong>Total Syllables:</strong> ${totalSyllables}</p>
+          <p><strong>Flesch Reading Ease Score:</strong> ${readabilityScore}</p>
+        </div>
+      `;
+      
+      let conclusionText = "";
+      if (readabilityScore >= 45) {
+        conclusionText += "The claim is clear and accessible. ";
+      } else if (readabilityScore >= 35) {
+        conclusionText += "The claim is in the ideal range for patent clarity. ";
+      } else if (readabilityScore >= 20) {
+        conclusionText += "The claim is moderately complex, which is typical for patent language. ";
+      } else {
+        conclusionText += "The claim is highly complex; consider simplifying for better clarity. ";
+      }
+      if (avgSentenceLength > 20) {
+        conclusionText += " The sentence structure appears overly verbose.";
+      }
+      document.getElementById('conclusion').innerHTML = `<div><p><strong>Conclusion:</strong> ${conclusionText}</p></div>`;
+      
+      const keywordCounts = extractKeywords(text, 5);
+      resultsDiv.innerHTML += `<div class="mt-4"><p><strong>Top Keywords:</strong></p>`;
+      for (let keyword in keywordCounts) {
+        resultsDiv.innerHTML += `<p>${keyword}: ${keywordCounts[keyword]}</p>`;
+      }
+      resultsDiv.innerHTML += `</div>`;
+      
+      createKeywordChart(keywordCounts);
+      
+      const advancedDiv = document.getElementById('advancedMetrics');
+      advancedDiv.innerHTML = `
+        <div class="space-y-2">
+          <p><strong>Average Word Length:</strong> ${avgWordLen} characters</p>
+          <p><strong>Long Words Count (≥7 letters):</strong> ${longWordsCount}</p>
+        </div>
+      `;
+      
+      // Adjust layout: shrink left section to half width and show right section with slide-in animation.
+      const leftSection = document.getElementById('leftSection');
+      const rightSection = document.getElementById('rightSection');
+      leftSection.classList.remove("md:w-full");
+      leftSection.classList.add("md:w-1/2");
+      rightSection.classList.remove("hidden", "translate-x-full");
+      // Force a reflow to apply transition.
+      void rightSection.offsetWidth;
+      rightSection.classList.add("translate-x-0");
+    }
+    
+    function toggleAdvanced() {
+      const advancedDiv = document.getElementById('advancedMetrics');
+      advancedDiv.classList.toggle('hidden');
+    }
+  </script>
+</body>
+</html>
